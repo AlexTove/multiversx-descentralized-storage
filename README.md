@@ -1,1 +1,1 @@
-#MultiversX Descentralized Storage Solution
+MultiversX Descentralized Storage Solution
