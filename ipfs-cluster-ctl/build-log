@@ -1,0 +1,12 @@
+go: downloading github.com/raulk/go-watchdog v1.3.0
+go: downloading github.com/elastic/gosigar v0.14.3
+go: downloading github.com/containerd/cgroups v1.1.0
+go: downloading github.com/opencontainers/runtime-spec v1.2.0
+go: downloading github.com/docker/go-units v0.5.0
+go: downloading github.com/godbus/dbus/v5 v5.1.0
+go: downloading github.com/coreos/go-systemd/v22 v22.5.0
+go: downloading github.com/gogo/protobuf v1.3.2
+GLIBC versions:
+2.2.5
+2.3.2
+2.3.4
