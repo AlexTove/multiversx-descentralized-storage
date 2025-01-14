@@ -1,0 +1,175 @@
+{
+    "buildInfo": {
+        "rustc": {
+            "version": "1.83.0",
+            "commitHash": "90b35a6239c3d8bdabc530a6a0816f7ff89a0aaf",
+            "commitDate": "2024-11-26",
+            "channel": "Stable",
+            "short": "rustc 1.83.0 (90b35a623 2024-11-26)"
+        },
+        "contractCrate": {
+            "name": "dcsc",
+            "version": "0.0.0"
+        },
+        "framework": {
+            "name": "multiversx-sc",
+            "version": "0.55.0"
+        }
+    },
+    "name": "Dcsc",
+    "constructor": {
+        "inputs": [],
+        "outputs": []
+    },
+    "upgradeConstructor": {
+        "inputs": [],
+        "outputs": []
+    },
+    "endpoints": [
+        {
+            "name": "files",
+            "mutability": "readonly",
+            "inputs": [],
+            "outputs": [
+                {
+                    "type": "variadic<multi<Address,List<FileMetadata>>>",
+                    "multi_result": true
+                }
+            ]
+        },
+        {
+            "name": "userFiles",
+            "mutability": "readonly",
+            "inputs": [
+                {
+                    "name": "user_address",
+                    "type": "Address"
+                }
+            ],
+            "outputs": [
+                {
+                    "type": "List<FileMetadata>"
+                }
+            ]
+        },
+        {
+            "name": "uploadFile",
+            "mutability": "mutable",
+            "inputs": [
+                {
+                    "name": "file_hash",
+                    "type": "bytes"
+                },
+                {
+                    "name": "file_size",
+                    "type": "u64"
+                },
+                {
+                    "name": "file_name",
+                    "type": "bytes"
+                },
+                {
+                    "name": "file_type",
+                    "type": "bytes"
+                },
+                {
+                    "name": "file_cid",
+                    "type": "bytes"
+                }
+            ],
+            "outputs": []
+        },
+        {
+            "name": "removeFile",
+            "mutability": "mutable",
+            "inputs": [
+                {
+                    "name": "file_cid",
+                    "type": "bytes"
+                }
+            ],
+            "outputs": []
+        },
+        {
+            "name": "getUploadedFiles",
+            "mutability": "mutable",
+            "inputs": [],
+            "outputs": [
+                {
+                    "type": "List<FileMetadata>"
+                }
+            ]
+        },
+        {
+            "name": "addTag",
+            "mutability": "mutable",
+            "inputs": [
+                {
+                    "name": "file_cid",
+                    "type": "bytes"
+                },
+                {
+                    "name": "tag",
+                    "type": "bytes"
+                }
+            ],
+            "outputs": []
+        },
+        {
+            "name": "removeTag",
+            "mutability": "mutable",
+            "inputs": [
+                {
+                    "name": "file_cid",
+                    "type": "bytes"
+                },
+                {
+                    "name": "tag",
+                    "type": "bytes"
+                }
+            ],
+            "outputs": []
+        }
+    ],
+    "esdtAttributes": [],
+    "hasCallback": false,
+    "types": {
+        "FileMetadata": {
+            "type": "struct",
+            "fields": [
+                {
+                    "name": "file_hash",
+                    "type": "bytes"
+                },
+                {
+                    "name": "file_size",
+                    "type": "u64"
+                },
+                {
+                    "name": "file_name",
+                    "type": "bytes"
+                },
+                {
+                    "name": "file_type",
+                    "type": "bytes"
+                },
+                {
+                    "name": "file_tags",
+                    "type": "List<bytes>"
+                },
+                {
+                    "name": "file_cid",
+                    "type": "bytes"
+                },
+                {
+                    "name": "timestamp",
+                    "type": "u64"
+                },
+                {
+                    "name": "uploader",
+                    "type": "Address"
+                }
+            ]
+        }
+    }
+}
