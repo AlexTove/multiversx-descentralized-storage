@@ -44,6 +44,7 @@ interface UploadFileProps {
 
 interface AddTagProps {
   tag: string;
+  file_cid: string;
   callbackRoute: string;
 }
 
@@ -58,6 +59,29 @@ interface DcscServiceProps {
   transactions: Transaction[];
   callbackRoute: string;
 }
+
+interface RemoveFileProps {
+  file_cid: string;
+  callbackRoute: string;
+}
+
+interface RemoveTagProps {
+  file_cid: string;
+  tag: string;
+  callbackRoute: string;
+}
+
+const REMOVE_FILE_TRANSACTION_INFO = {
+  processingMessage: 'Processing removeFile transaction',
+  errorMessage: 'An error occurred during file removal',
+  successMessage: 'File removal transaction successful'
+};
+
+const REMOVE_TAG_TRANSACTION_INFO = {
+  processingMessage: 'Processing removeTag transaction',
+  errorMessage: 'An error occurred during tag removal',
+  successMessage: 'Tag removal transaction successful'
+};
 
 const UPLOAD_TRANSACTION_INFO = {
   processingMessage: 'Processing uploadFile transaction',
@@ -267,12 +291,14 @@ export const useSendDcscTransaction = () => {
    * C) Simple
    */
   const sendAddTagTransactionSimple = useCallback(
-    async ({ tag, callbackRoute }: AddTagProps) => {
+    async ({ file_cid, tag, callbackRoute }: AddTagProps) => {
       clearAllTransactions();
 
       // As with uploadFile, you'll typically encode the tag in the data.
       // This is just a placeholder approach:
-      const dataField = `addTag@${tag}`;
+      const encodedTag = toHex(tag);
+      const encodedFileCid = toHex(file_cid);
+      const dataField = `addTag@${encodedFileCid}@${encodedTag}`;
 
       const transaction = newTransaction({
         value: '0',
@@ -386,6 +412,183 @@ export const useSendDcscTransaction = () => {
   );
 
   // ---------------------------------------------------------------------
+  // 4) REMOVE FILE
+  // ---------------------------------------------------------------------
+
+  /**
+   * A) From ABI - Remove File
+   */
+  const sendRemoveFileTransactionFromAbi = useCallback(
+    async ({ file_cid, callbackRoute }: RemoveFileProps) => {
+      clearAllTransactions();
+
+      const transaction = smartContract.methodsExplicit
+        .removeFile(file_cid)
+        .withSender(new Address(address))
+        .withValue('0')
+        .withGasLimit(60_000_000)
+        .withGasPrice(GAS_PRICE)
+        .withChainID(getChainId())
+        .withVersion(VERSION)
+        .buildTransaction();
+
+      const newSessionId = await signAndSendTransactions({
+        transactions: [transaction],
+        callbackRoute,
+        transactionsDisplayInfo: REMOVE_FILE_TRANSACTION_INFO
+      });
+
+      sessionStorage.setItem('dcscSessionId', newSessionId);
+      setSessionId(newSessionId);
+    },
+    [address]
+  );
+
+  /**
+ * B) From Service - Remove File
+ */
+  const sendRemoveFileTransactionFromService = useCallback(
+    async ({ transactions, callbackRoute }: DcscServiceProps) => {
+      clearAllTransactions();
+
+      const newSessionId = await signAndSendTransactions({
+        transactions,
+        callbackRoute,
+        transactionsDisplayInfo: REMOVE_FILE_TRANSACTION_INFO
+      });
+
+      sessionStorage.setItem('dcscSessionId', newSessionId);
+      setSessionId(newSessionId);
+    },
+    []
+  );
+
+  /**
+   * C) Simple - Remove File
+   */
+  const sendRemoveFileTransactionSimple = useCallback(
+    async ({ file_cid, callbackRoute }: RemoveFileProps) => {
+      clearAllTransactions();
+
+      const encodedFileCid = toHex(file_cid);
+
+      const dataField = `removeFile@${encodedFileCid}`;
+
+      const transaction = newTransaction({
+        value: '0',
+        data: dataField,
+        receiver: contractAddress,
+        gasLimit: 60_000_000,
+        gasPrice: GAS_PRICE,
+        chainID: network.chainId,
+        nonce: account.nonce,
+        sender: address,
+        version: VERSION
+      });
+
+      const newSessionId = await signAndSendTransactions({
+        transactions: [transaction],
+        callbackRoute,
+        transactionsDisplayInfo: REMOVE_FILE_TRANSACTION_INFO
+      });
+
+      sessionStorage.setItem('dcscSessionId', newSessionId);
+      setSessionId(newSessionId);
+    },
+    [address, account?.nonce, network?.chainId]
+  );
+
+  // ---------------------------------------------------------------------
+  // 5) REMOVE TAG
+  // ---------------------------------------------------------------------
+
+  /**
+   * A) From ABI - Remove Tag
+   */
+  const sendRemoveTagTransactionFromAbi = useCallback(
+    async ({ file_cid, tag, callbackRoute }: RemoveTagProps) => {
+      clearAllTransactions();
+
+      const transaction = smartContract.methodsExplicit
+        .removeTag(file_cid, tag)
+        .withSender(new Address(address))
+        .withValue('0')
+        .withGasLimit(60_000_000)
+        .withGasPrice(GAS_PRICE)
+        .withChainID(getChainId())
+        .withVersion(VERSION)
+        .buildTransaction();
+
+      const newSessionId = await signAndSendTransactions({
+        transactions: [transaction],
+        callbackRoute,
+        transactionsDisplayInfo: REMOVE_TAG_TRANSACTION_INFO
+      });
+
+      sessionStorage.setItem('dcscSessionId', newSessionId);
+      setSessionId(newSessionId);
+    },
+    [address]
+  );
+
+  /**
+ * B) From Service - Remove Tag
+ */
+  const sendRemoveTagTransactionFromService = useCallback(
+    async ({ transactions, callbackRoute }: DcscServiceProps) => {
+      clearAllTransactions();
+
+      const newSessionId = await signAndSendTransactions({
+        transactions,
+        callbackRoute,
+        transactionsDisplayInfo: REMOVE_TAG_TRANSACTION_INFO
+      });
+
+      sessionStorage.setItem('dcscSessionId', newSessionId);
+      setSessionId(newSessionId);
+    },
+    []
+  );
+
+  /**
+   * C) Simple - Remove Tag
+   */
+  const sendRemoveTagTransactionSimple = useCallback(
+    async ({ file_cid, tag, callbackRoute }: RemoveTagProps) => {
+      clearAllTransactions();
+      const encodedFileCid = toHex(file_cid);
+      const encodedTag = toHex(tag);
+
+      const dataField = `removeTag@${encodedFileCid}@${encodedTag}`;
+
+      const transaction = newTransaction({
+        value: '0',
+        data: dataField,
+        receiver: contractAddress,
+        gasLimit: 60_000_000,
+        gasPrice: GAS_PRICE,
+        chainID: network.chainId,
+        nonce: account.nonce,
+        sender: address,
+        version: VERSION
+      });
+
+      const newSessionId = await signAndSendTransactions({
+        transactions: [transaction],
+        callbackRoute,
+        transactionsDisplayInfo: REMOVE_TAG_TRANSACTION_INFO
+      });
+
+      sessionStorage.setItem('dcscSessionId', newSessionId);
+      setSessionId(newSessionId);
+    },
+    [address, account?.nonce, network?.chainId]
+  );
+
+
+
+
+  // ---------------------------------------------------------------------
 
   return {
     transactionStatus,
@@ -403,6 +606,16 @@ export const useSendDcscTransaction = () => {
     // GET UPLOADED FILES
     sendGetUploadedFilesTransactionFromAbi,
     sendGetUploadedFilesTransactionFromService,
-    sendGetUploadedFilesTransactionSimple
+    sendGetUploadedFilesTransactionSimple,
+
+    // REMOVE FILE
+    sendRemoveFileTransactionFromAbi,
+    sendRemoveFileTransactionFromService,
+    sendRemoveFileTransactionSimple,
+
+    // REMOVE TAG
+    sendRemoveTagTransactionFromAbi,
+    sendRemoveTagTransactionFromService,
+    sendRemoveTagTransactionSimple
   };
 };

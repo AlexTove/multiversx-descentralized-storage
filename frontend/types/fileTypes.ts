@@ -17,5 +17,6 @@ export interface File {
 export interface Folder {
   id: string;
   name: string;
-  createdAt: Date;
+  createdAt?: Date;
+  icon?: string;
 }

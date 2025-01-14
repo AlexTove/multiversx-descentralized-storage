@@ -58,7 +58,7 @@ export function FileUpload() {
       // Use XMLHttpRequest to track upload progress
       const xhr = new XMLHttpRequest();
 
-      xhr.open('POST', 'http://localhost:3001/upload');
+      xhr.open('POST', process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001/upload');
 
       xhr.upload.onprogress = (event) => {
         if (event.lengthComputable) {

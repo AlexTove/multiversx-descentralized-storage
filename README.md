@@ -125,7 +125,7 @@ cp .env.example .env
 ```
    - Open the `.env` file and update the following:
      ```env
-     DECENTRALSTOREADDRESS=<your_contract_address>
+     CONTRACT_ADDRESS=<your_contract_address>
      NEXT_PUBLIC_BACKEND_URL=http://localhost:3000
      ```
      - Replace `<your_contract_address>` with the contract address copied from the blockchain deployment output.
@@ -199,7 +199,7 @@ npm run dev
 
 2. Update the frontend `.env` file:
    ```env
-   DECENTRALSTOREADDRESS=<copied_contract_address>
+   CONTRACT_ADDRESS=<copied_contract_address>
    ```
    This ensures the frontend interacts with the correct smart contract.
 

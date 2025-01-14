@@ -1,55 +1,41 @@
-"use client";
+import { useEffect, useState } from 'react';
 
-import { useState, useCallback, useEffect } from "react";
-import { useSendDcscTransaction } from "@/hooks/transactions/decentralstoreTransaction";
-import { useIsWebProvider } from "@/hooks/useIsWebProvider"; // Updated import
+import { useGetNetworkConfig } from '@/hooks';
+import { ContractFunction, ResultsParser, ProxyNetworkProvider } from '@/utils';
+import { smartContract } from '@/utils/smartContract';
 
-interface FileMetadata {
-  file_hash: string;
-  file_size: number | string;
-  file_name: string;
-  file_type: string;
-  file_cid: string;
-}
+const resultsParser = new ResultsParser();
 
-export function GetFiles() {
-  const { sendGetUploadedFilesTransactionSimple } = useSendDcscTransaction();
-  const { isWebProvider } = useIsWebProvider(); // Use the useIsWebProvider hook
+export const useGetFilesTransaction = () => {
+  const { network } = useGetNetworkConfig();
+  // const [pingAmount, setPingAmount] = useState<string>('0');
 
-  const [uploadedFiles, setUploadedFiles] = useState<FileMetadata[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const proxy = new ProxyNetworkProvider(network.apiAddress);
 
-  const fetchUploadedFiles = useCallback(async () => {
-    if (!isWebProvider) {
-      console.log("Web provider not available. Waiting...");
-      return;
-    }
+  // const getPingAmount = async () => {
+  //   try {
+  //     const query = smartContract.createQuery({
+  //       func: new ContractFunction('files')
+  //     });
+  //     const queryResponse = await proxy.queryContract(query);
 
-    try {
-      setIsLoading(true);
-      console.log("Fetching uploaded files...");
-      const files = await sendGetUploadedFilesTransactionSimple({
-        callbackRoute: "/dashboard", // route after success
-      });
-      console.log("Retrieved files:", files);
-      // setUploadedFiles(files);
-    } catch (err) {
-      console.error("Error retrieving uploaded files:", err);
-      setError("Failed to retrieve uploaded files. Please try again later.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isWebProvider, sendGetUploadedFilesTransactionSimple]);
+  //     const endpointDefinition = smartContract.getEndpoint('files');
 
-  useEffect(() => {
-    if (isWebProvider) {
-      fetchUploadedFiles();
-    } else {
-      console.log("Web provider is not ready. fetchUploadedFiles will be called once available.");
-    }
-  }, [isWebProvider, fetchUploadedFiles]);
+  //     const { firstValue: amount } = resultsParser.parseQueryResponse(
+  //       queryResponse,
+  //       endpointDefinition
+  //     );
+  //     console.log(amount);
+  //     return '';
+  //     // setPingAmount(amount?.valueOf()?.toString(10));
+  //   } catch (err) {
+  //     console.error('Unable to call getPingAmount', err);
+  //   }
+  // };
 
-}
+  // useEffect(() => {
+  //   getPingAmount();
+  // }, []);
 
-export default GetFiles;
+  return 'pingAmount';
+};

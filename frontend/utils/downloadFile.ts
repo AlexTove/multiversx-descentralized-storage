@@ -6,7 +6,8 @@ export async function downloadFile(
   toast: ReturnType<typeof useToast>["toast"]
 ) {
   try {
-    const response = await fetch(`http://localhost:3001/file/${cid}`);
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+    const response = await fetch(`${backendUrl}/file/${cid}`);
     if (!response.ok) {
       throw new Error('Network response was not ok');
     }

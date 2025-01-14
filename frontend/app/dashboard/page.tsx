@@ -1,4 +1,4 @@
-import { FileManager } from "@/components/file-manager/index";
+import { FileManager } from "@/components/file-manager/index copy2";
 import { Navbar } from "@/components/navbar";
 
 export default function FilesPage() {

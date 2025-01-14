@@ -13,7 +13,7 @@ import { StatsDashboard } from "./statsDashboard";
 import { SearchSortBar } from "./searchSortBar";
 import { FileUpload } from "@/components/file-upload";
 import { formatSize } from "./formatSize";
-import { GetFiles } from "./getFiles";
+import { useGetFilesTransaction } from "./getFiles";
 
 type ViewMode = "grid" | "list";
 type FileType = "all" | "image" | "video" | "document";
@@ -70,7 +70,8 @@ const mockFiles: File[] = [
 export function FileManager() {
   const { toast } = useToast();
  
-  GetFiles();
+  useGetFilesTransaction();
+
 
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [fileType, setFileType] = useState<FileType>("all");

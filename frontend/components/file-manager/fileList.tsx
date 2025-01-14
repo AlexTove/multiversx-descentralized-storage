@@ -1,11 +1,12 @@
-import { FileText, Download, Trash2, Tag } from "lucide-react";
+import { FileText, Download, Trash2, Tag, TrashIcon, TagIcon } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { File } from "@/types/fileTypes";
 import { formatSize } from "@/utils/formatSize";
+import { AddTagForm } from "./addTagForm";
 
 interface FileListProps {
   files: File[];
@@ -13,10 +14,12 @@ interface FileListProps {
   onSelectFile: (fileId: string) => void;
   onSelectAll: () => void;
   onDownload: (cid: string, fileName: string) => void;
-  // Optionally add onDelete, onAddTag, etc. as needed
+  onRemoveFile: (fileId: string) => void;
+  onAddTag: (fileId: string, tag: string) => void;
+  onRemoveTag: (fileId: string, tag: string) => void; // Optionally add onDelete, onAddTag, etc. as needed
 }
 
-export function FileList({ files, selectedFiles, onSelectFile, onSelectAll, onDownload }: FileListProps) {
+export function FileList({ files, selectedFiles, onSelectFile, onSelectAll, onDownload, onRemoveFile, onAddTag, onRemoveTag }: FileListProps) {
   return (
     <div className="border rounded-lg divide-y">
       <div className="p-4 bg-muted">
@@ -53,14 +56,42 @@ export function FileList({ files, selectedFiles, onSelectFile, onSelectAll, onDo
                   <span>{format(file.uploadDate, "MMM d, yyyy")}</span>
                   <span>•</span>
                   <span>Size: {formatSize(file.size)}</span>
-                  <div className="flex gap-1">
-                    {file.tags.map(tag => (
-                      <span
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {file.tags.map((tag) => (
+                      <div
                         key={tag}
-                        className="bg-muted px-2 py-0.5 rounded-full text-xs"
+                        className="flex items-center bg-gray-200 text-gray-800 rounded-full px-3 py-1 text-sm"
                       >
-                        {tag}
-                      </span>
+                        <span>{tag}</span>
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <button
+                              className="ml-2 text-red-500 hover:text-red-700 focus:outline-none"
+                              aria-label={`Remove tag ${tag}`}
+                            >
+                              <TrashIcon className="h-4 w-4" />
+                            </button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Remove Tag</DialogTitle>
+                              <DialogDescription>
+                                Are you sure you want to remove the tag "
+                                <strong>{tag}</strong>" from this file?
+                              </DialogDescription>
+                            </DialogHeader>
+                            <DialogFooter>
+                              <Button variant="outline">Cancel</Button>
+                              <Button
+                                variant="destructive"
+                                onClick={() => onRemoveTag(file.id, tag)}
+                              >
+                                Remove
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -70,18 +101,22 @@ export function FileList({ files, selectedFiles, onSelectFile, onSelectAll, onDo
           <div className="flex items-center gap-2">
             <Dialog>
               <DialogTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <Tag className="h-4 w-4" />
+                <Button variant="outline" size="icon">
+                  <TagIcon className="h-4 w-4" />
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Add Tag</DialogTitle>
+                  <DialogDescription>
+                    {/* Tag adding form */}
+                    <AddTagForm onAddTag={(tag) => onAddTag(file.id, tag)} />
+                  </DialogDescription>
                 </DialogHeader>
-                <div className="flex gap-2">
-                  <Input placeholder="New tag" />
-                  <Button>Add</Button>
-                </div>
+                <DialogFooter>
+                  <Button type="button">Cancel</Button>
+                  <Button type="submit">Add Tag</Button>
+                </DialogFooter>
               </DialogContent>
             </Dialog>
             <Button
@@ -91,9 +126,32 @@ export function FileList({ files, selectedFiles, onSelectFile, onSelectAll, onDo
             >
               <Download className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" className="text-destructive">
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            {/* Remove File Dialog */}
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="destructive" size="icon">
+                  <TrashIcon className="h-4 w-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Remove File</DialogTitle>
+                  <DialogDescription>
+                    Are you sure you want to remove <strong>{file.name}</strong>?
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button type="button">Cancel</Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={() => onRemoveFile(file.id)}
+                  >
+                    Remove
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
       ))}

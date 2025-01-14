@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Grid, List, FolderPlus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 import { useToast } from "@/hooks/use-toast";
-import { useSendDcscTransaction } from "@/hooks/transactions";
+import { useGetFilesTransaction } from "./getFiles";
 
 import { StatsDashboard } from "./statsDashboard";
 import { SearchSortBar } from "./searchSortBar";
@@ -17,17 +17,120 @@ import { FileGrid } from "./fileGrid";
 import { FileList } from "./fileList";
 import { FolderGrid } from "./folderGrid";
 
-import { ViewMode, File, Folder } from "@/types/fileTypes";
+import { ViewMode, File } from "@/types/fileTypes";
 import { downloadFile } from "@/utils/downloadFile";
+
+import { useGetNetworkConfig, useGetAccount } from '@/hooks';
+import { Address, AddressValue, ContractFunction, ResultsParser, ProxyNetworkProvider } from '@/utils';
+import { smartContract } from '@/utils/smartContract';
+import { useSendDcscTransaction } from "@/hooks/transactions";
+
+const resultsParser = new ResultsParser();
+
+// Helper function to decode Buffer data to string
+const decodeBuffer = (bufferData: number[]): string => {
+  const uint8Array = new Uint8Array(bufferData);
+  return new TextDecoder('utf-8').decode(uint8Array);
+};
+
+// Function to parse raw files data into File objects
+const parseFiles = (rawFiles: any[]): File[] => {
+  return rawFiles.map((rawFile) => {
+    console.log('Raw File:', rawFile);
+    const mimeType = decodeBuffer(rawFile.file_type);
+    const folderId = getFolderIdByMimeType(mimeType);
+
+    return {
+      id: decodeBuffer(rawFile.file_hash),
+      name: decodeBuffer(rawFile.file_name),
+      type: mimeType,
+      size: Number(rawFile.file_size),
+      ipfsHash: decodeBuffer(rawFile.file_cid),
+      fileHash: decodeBuffer(rawFile.file_hash),
+      uploadDate: new Date(Number(rawFile.timestamp) * 1000), // Convert seconds to milliseconds
+      tags: rawFile.file_tags.map((tag: number[]) => decodeBuffer(tag)), // Decode each tag
+      folderId: folderId,
+      uploader: rawFile.uploader.bech32,
+    };
+  });
+};
+
+interface Folder {
+  id: string;
+  name: string;
+}
+
+// Define folder categories based on MIME types
+const folderCategories: { [key: string]: string } = {
+  images: 'Images',
+  videos: 'Videos',
+  audio: 'Audio',
+  documents: 'Documents',
+  archives: 'Archives',
+  others: 'Others',
+};
+
+// Function to get folder ID based on MIME type
+const getFolderIdByMimeType = (mimeType: string): string => {
+  const primaryType = mimeType.split('/')[0];
+
+  switch (primaryType) {
+    case 'image':
+      return 'images';
+    case 'video':
+      return 'videos';
+    case 'audio':
+      return 'audio';
+    case 'text':
+      return 'documents';
+    case 'application':
+      // Further categorize application types
+      if (
+        mimeType === 'application/pdf' ||
+        mimeType === 'application/msword' ||
+        mimeType ===
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+        mimeType === 'application/vnd.ms-excel' ||
+        mimeType ===
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+        mimeType === 'application/vnd.ms-powerpoint' ||
+        mimeType ===
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+      ) {
+        return 'documents';
+      } else if (
+        mimeType === 'application/zip' ||
+        mimeType === 'application/x-rar-compressed' ||
+        mimeType === 'application/gzip' ||
+        mimeType === 'application/x-7z-compressed'
+      ) {
+        return 'archives';
+      } else {
+        return 'others';
+      }
+    default:
+      return 'others';
+  }
+};
 
 export function FileManager() {
   const { toast } = useToast();
-  const { sendGetUploadedFilesTransactionSimple } = useSendDcscTransaction();
+  const { network } = useGetNetworkConfig();
+  const proxy = new ProxyNetworkProvider(network.apiAddress);
+  const { address } = useGetAccount();
 
   // State variables
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [files, setFiles] = useState<File[]>([]);
-  const [folders, setFolders] = useState<Folder[]>([]); // Populate as needed, e.g., from static data
+  const [folders, setFolders] = useState<Folder[]>([
+    { id: 'images', name: 'Images' },
+    { id: 'videos', name: 'Videos' },
+    { id: 'audio', name: 'Audio' },
+    { id: 'documents', name: 'Documents' },
+    { id: 'archives', name: 'Archives' },
+    { id: 'others', name: 'Others' },
+  ]);
+  // Populate as needed, e.g., from static data
   const [dataLoaded, setDataLoaded] = useState(false);
 
   // Additional UI state variables (filters, selection, search, etc.)
@@ -37,34 +140,71 @@ export function FileManager() {
   const [currentFolder, setCurrentFolder] = useState<string | null>(null);
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState("date-desc");
+  const { sendAddTagTransactionSimple, sendRemoveFileTransactionSimple, sendRemoveTagTransactionSimple } = useSendDcscTransaction();
 
   // Handle loading files on button click
-  const handleLoadFiles = async () => {
+  const handleLoadFiles = useCallback(async () => {
     try {
-      const fetchedFiles: File[] = await sendGetUploadedFilesTransactionSimple({
-        callbackRoute: "/dashboard",
+      // Create the query for the 'userFiles' endpoint
+      const query = smartContract.createQuery({
+        func: new ContractFunction('userFiles'),
+        args: [new AddressValue(new Address(address))], // Ensure 'address' is defined in your scope
       });
-      // Assume fetchedFiles is an array of File objects
-      setFiles(fetchedFiles);
-      setDataLoaded(true);
-    } catch (error) {
-      console.error(error);
+
+      // Execute the query using the proxy
+      const queryResponse = await proxy.queryContract(query);
+
+      // Get the endpoint definition for 'userFiles'
+      const endpointDefinition = smartContract.getEndpoint('userFiles');
+
+      // Parse the query response to extract files
+      const { firstValue: rawFiles } = resultsParser.parseQueryResponse(
+        queryResponse,
+        endpointDefinition
+      );
+
+      console.log('Raw Files Data:', rawFiles?.valueOf());
+
+      // Check if rawFiles exists and has data
+      if (rawFiles && rawFiles.valueOf().length > 0) {
+        // Parse the raw files into File objects
+        const parsedFiles = parseFiles(rawFiles.valueOf());
+        console.log('Parsed Files:', parsedFiles);
+
+        // Update the state with the parsed files
+        setFiles(parsedFiles);
+        setDataLoaded(true);
+      } else {
+        console.log('No files retrieved from the contract.');
+        setFiles([]);
+        setDataLoaded(true);
+      }
+
+      return '';
+    } catch (err) {
+      console.error('Unable to call getUserFiles:', err);
       toast({
-        title: "Error",
-        description: "Failed to load files",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to load files.',
+        variant: 'destructive',
       });
     }
-  };
+  }, [address]);
+
+  useEffect(() => {
+    if (address) {
+      handleLoadFiles();
+    }
+  }, [address, handleLoadFiles]);
 
   // Stats calculation based on loaded files
   const stats = {
     totalFiles: files.length,
     totalSize: files.reduce((acc, file) => acc + file.size, 0),
     fileTypes: {
-      images: files.filter(f => f.type === "image").length,
-      videos: files.filter(f => f.type === "video").length,
-      documents: files.filter(f => f.type === "document").length
+      images: files.filter(f => getFolderIdByMimeType(f.type) === "images").length,
+      videos: files.filter(f => getFolderIdByMimeType(f.type) === "videos").length,
+      documents: files.filter(f => getFolderIdByMimeType(f.type) === "documents").length
     }
   };
 
@@ -123,15 +263,74 @@ export function FileManager() {
     }
   };
 
-  // If data hasn't been loaded, show a button to load files
-  if (!dataLoaded) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Button onClick={handleLoadFiles}>See Files</Button>
-      </div>
-    );
-  }
+  // Handler to remove a file
+  const handleRemoveFile = useCallback(
+    async (ipfsHash: string) => {
+      try {
+        await sendRemoveFileTransactionSimple({ file_cid: ipfsHash, callbackRoute: "/dashboard" });
+        toast({
+          title: "File Removed",
+          description: "The file has been successfully removed.",
+          variant: "default",
+        });
+        handleLoadFiles(); // Refresh the files list after removal
+      } catch (error) {
+        console.error("Error removing file:", error);
+        toast({
+          title: "Error",
+          description: "Failed to remove the file.",
+          variant: "destructive",
+        });
+      }
+    },
+    [sendRemoveFileTransactionSimple, handleLoadFiles, toast]
+  );
 
+  // Handler to add a tag to a file
+  const handleAddTag = useCallback(
+    async (ipsfHash: string, tag: string) => {
+      try {
+        await sendAddTagTransactionSimple({file_cid: ipsfHash, tag: tag, callbackRoute: "/dashboard"});
+        toast({
+          title: "Tag Added",
+          description: `Tag "${tag}" has been added to the file.`,
+          variant: "default",
+        });
+        handleLoadFiles(); // Refresh the files list after adding a tag
+      } catch (error) {
+        console.error("Error adding tag:", error);
+        toast({
+          title: "Error",
+          description: "Failed to add the tag.",
+          variant: "destructive",
+        });
+      }
+    },
+    [sendAddTagTransactionSimple, handleLoadFiles, toast]
+  );
+
+  // Handler to remove a tag from a file
+  const handleRemoveTag = useCallback(
+    async (ipsfHash: string, tag: string) => {
+      try {
+        await sendRemoveTagTransactionSimple({file_cid: ipsfHash, tag: tag, callbackRoute: "/dashboard"});
+        toast({
+          title: "Tag Removed",
+          description: `Tag "${tag}" has been removed from the file.`,
+          variant: "default",
+        });
+        handleLoadFiles(); // Refresh the files list after removing a tag
+      } catch (error) {
+        console.error("Error removing tag:", error);
+        toast({
+          title: "Error",
+          description: "Failed to remove the tag.",
+          variant: "destructive",
+        });
+      }
+    },
+    [sendRemoveTagTransactionSimple, handleLoadFiles, toast]
+  );
   return (
     <div className="space-y-6">
       {/* Display stats dashboard */}
@@ -172,7 +371,7 @@ export function FileManager() {
           >
             <List className="h-4 w-4" />
           </Button>
-          <Dialog>
+          {/* <Dialog>
             <DialogTrigger asChild>
               <Button variant="outline" size="icon">
                 <FolderPlus className="h-4 w-4" />
@@ -182,9 +381,8 @@ export function FileManager() {
               <DialogHeader>
                 <DialogTitle>Create New Folder</DialogTitle>
               </DialogHeader>
-              {/* Folder creation form can go here */}
             </DialogContent>
-          </Dialog>
+          </Dialog> */}
         </div>
       </div>
 
@@ -234,14 +432,20 @@ export function FileManager() {
           selectedFiles={selectedFiles}
           onSelectFile={handleSelectFile}
           onDownload={(cid: string, fileName: string) => downloadFile(cid, fileName, toast)}
+          onRemoveFile={handleRemoveFile}
+          onAddTag={handleAddTag} // Pass the add tag handler
+          onRemoveTag={handleRemoveTag} // Pass the remove tag handler
         />
       ) : (
         <FileList
           files={filteredFiles}
           selectedFiles={selectedFiles}
           onSelectFile={handleSelectFile}
-          onSelectAll={handleSelectAll}
           onDownload={(cid: string, fileName: string) => downloadFile(cid, fileName, toast)}
+          onSelectAll={handleSelectAll}
+          onRemoveFile={handleRemoveFile}
+          onAddTag={handleAddTag} // Pass the add tag handler
+          onRemoveTag={handleRemoveTag} // Pass the remove tag handler
         />
       )}
 
